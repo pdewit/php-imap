@@ -155,6 +155,10 @@ class Mailbox
     /** @var string */
     protected $mailboxFolder;
 
+    public const ATTACH_FILE_NAMERANDOM = 1;     // Filename is unique (random)
+    public const ATTACH_FILE_NAMEORIGINAL = 2;   // Filename is Attachment-Filename
+    /** @var int */
+    protected $attachmentsFilenameMode = self::ATTACH_FILE_NAMERANDOM;
     /** @var resource|null */
     private $imapStream;
 
@@ -293,7 +297,20 @@ class Mailbox
     {
         $this->attachmentsIgnore = $attachmentsIgnore;
     }
-
+	
+    /**
+     * Set $this->setAttachmentsRandomFilename param. 
+     *
+     * @param int $random ATTACH_FILE_NAMERANDOM, ATTACH_FILE_NAMEORIGINAL
+     *
+     * @return Mailbox
+     */
+    public function setAttachmentsFilenameMode(int $mode) : Mailbox
+    {
+        $this->attachmentsFilenameMode = $mode;
+        return $this;
+    }
+	
     /**
      * Get $this->attachmentsIgnore param.
      *
@@ -1314,14 +1331,23 @@ class Mailbox
 
         $attachmentsDir = $this->getAttachmentsDir();
 
-        if (null != $attachmentsDir) {
-            $fileSysName = \bin2hex(\random_bytes(16)).'.bin';
+        if (null !== $attachmentsDir) {
+            switch($this->attachmentsFilenameMode) {
+                case self::ATTACH_FILE_NAMEORIGINAL:
+                    $fileSysName = $fileName;
+                    break;
+                case self::ATTACH_FILE_NAMERANDOM:
+                default:
+                    $fileSysName = \bin2hex(\random_bytes(16)).'.bin';
+            }
+            
             $filePath = $attachmentsDir.DIRECTORY_SEPARATOR.$fileSysName;
 
             if (\strlen($filePath) > self::MAX_LENGTH_FILEPATH) {
                 $ext = \pathinfo($filePath, PATHINFO_EXTENSION);
                 $filePath = \substr($filePath, 0, self::MAX_LENGTH_FILEPATH - 1 - \strlen($ext)).'.'.$ext;
             }
+ 
             $attachment->setFilePath($filePath);
             $attachment->saveToDisk();
         }
